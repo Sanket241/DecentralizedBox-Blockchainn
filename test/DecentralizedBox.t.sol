@@ -13,16 +13,5 @@ contract DecentralizedBoxTest is Test {
         box = new DecentralizedBox();
     }
 
-    // function testUploadHash() public {
-    //     string memory hash = "";
-    //     box.uploadHash(hash);
-    //     assertEq(box.getHash(), hash);
-    // }
-
-    // function testEmitHashUploadedEvent() public {
-    //     string memory hash = "";
-    //     vm.expectEmit(true, true, true, true);
-    //     emit HashUploaded(hash);
-    //     box.uploadHash(hash);
-    // }
+   
 }
