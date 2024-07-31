@@ -3,12 +3,19 @@ pragma solidity 0.8.24;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 contract DecentralizedBox is Ownable {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     error DecentralizedBox__AlreadyUploaded();
     error DecentralizedBox__IncorrectIdx();
+    error DecentralizedBox__AlreadySubOwner();
+    error DecentralizedBox__NotOwnerOrSubOwner();
+    error DecentralizedBox__AlreadyNotSubOwner();
 
     mapping(string ipfsHash => bool) private s_isUploaded;
+    EnumerableSet.AddressSet private s_subOwners;
     string[] private s_ipfsHashes;
 
     event HashUploaded(string indexed ipfsHash);
@@ -20,11 +27,34 @@ contract DecentralizedBox is Ownable {
         _;
     }
 
+    modifier onlyOwnerOrSubOwner() {
+        if (msg.sender != owner() && !s_subOwners.contains(msg.sender)) {
+            revert DecentralizedBox__NotOwnerOrSubOwner();
+        }
+        _;
+    }
+
     constructor() Ownable(msg.sender) {
 
     }
 
-    function uploadHash(string memory _ipfsHash) external onlyOwner revertIfAlreadyUploaded(_ipfsHash) {
+    function addSubOwner(address _subOwner) external onlyOwner {
+        if (s_subOwners.contains(_subOwner)) {
+            revert DecentralizedBox__AlreadySubOwner();
+        }
+
+        s_subOwners.add(_subOwner);
+    }
+
+    function removeSubOwner(address _subOwner) external onlyOwner {
+        if (!s_subOwners.contains(_subOwner)) {
+            revert DecentralizedBox__AlreadyNotSubOwner();
+        }
+
+        s_subOwners.remove(_subOwner);
+    }
+
+    function uploadHash(string memory _ipfsHash) external onlyOwnerOrSubOwner revertIfAlreadyUploaded(_ipfsHash) {
         s_isUploaded[_ipfsHash] = true;
         s_ipfsHashes.push(_ipfsHash);
         emit HashUploaded(_ipfsHash);
@@ -59,7 +89,15 @@ contract DecentralizedBox is Ownable {
         return s_isUploaded[_ipfsHash];
     }
 
-    // @note owner of this contract can be viewed by calling the inherited function: owner()
+    function isSubOwner(address _subOwner) external view returns (bool) {
+        return s_subOwners.contains(_subOwner);
+    }
+
+    function getAllSubOwners() external view returns (address[] memory) {
+        return s_subOwners.values();
+    }
+   
 }
+
 
 
