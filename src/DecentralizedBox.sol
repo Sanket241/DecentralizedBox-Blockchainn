@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
@@ -14,11 +15,21 @@ contract DecentralizedBox is Ownable {
     error DecentralizedBox__NotOwnerOrSubOwner();
     error DecentralizedBox__AlreadyNotSubOwner();
 
+    struct UploadInfo {
+        string ipfsHash;
+        string name;
+        string id;
+        uint256 timestamp;
+        string description;
+    }
+
     mapping(string ipfsHash => bool) private s_isUploaded;
     EnumerableSet.AddressSet private s_subOwners;
-    string[] private s_ipfsHashes;
+    UploadInfo[] private s_uploadInfos;
 
-    event HashUploaded(string indexed ipfsHash);
+    event HashUploaded(string ipfsHash, string name, string id, uint256 timestamp, string description);
+    event SubOwnerAdded(address indexed subOwner);
+    event SubOwnerRemoved(address indexed subOwner);
 
     modifier revertIfAlreadyUploaded(string memory _ipfsHash) {
         if (s_isUploaded[_ipfsHash]) {
@@ -43,6 +54,7 @@ contract DecentralizedBox is Ownable {
             revert DecentralizedBox__AlreadySubOwner();
         }
 
+        emit SubOwnerAdded(_subOwner);
         s_subOwners.add(_subOwner);
     }
 
@@ -51,38 +63,46 @@ contract DecentralizedBox is Ownable {
             revert DecentralizedBox__AlreadyNotSubOwner();
         }
 
+        emit SubOwnerRemoved(_subOwner);
         s_subOwners.remove(_subOwner);
     }
 
-    function uploadHash(string memory _ipfsHash) external onlyOwnerOrSubOwner revertIfAlreadyUploaded(_ipfsHash) {
+    function uploadHash(string memory _ipfsHash, string memory _name, string memory _id, string memory _description) external onlyOwnerOrSubOwner revertIfAlreadyUploaded(_ipfsHash) {
         s_isUploaded[_ipfsHash] = true;
-        s_ipfsHashes.push(_ipfsHash);
-        emit HashUploaded(_ipfsHash);
+
+        emit HashUploaded(_ipfsHash, _name, _id, block.timestamp, _description);
+        s_uploadInfos.push(UploadInfo({
+            ipfsHash: _ipfsHash,
+            name: _name,
+            id: _id,
+            timestamp: block.timestamp,
+            description: _description
+        }));
     }
 
-    function getIpfsHashInRange(uint256 st, uint256 end) external view returns (string[] memory) {
-        uint256 len = s_ipfsHashes.length;
+    function getUploadInfoInRange(uint256 st, uint256 end) external view returns (UploadInfo[] memory) {
+        uint256 len = s_uploadInfos.length;
         
         if (st >= len || st > end) {
             revert DecentralizedBox__IncorrectIdx();
         }
         
         end = Math.min(end, len - 1);
-        string[] memory _ipfsHashes = new string[](end - st + 1);
+        UploadInfo[] memory _uploadInfos = new UploadInfo[](end - st + 1);
 
         for (uint256 i = st; i <= end; ++i) {
-            _ipfsHashes[i - st] = s_ipfsHashes[i];
+            _uploadInfos[i - st] = s_uploadInfos[i];
         }
 
-        return _ipfsHashes;
+        return _uploadInfos;
     }
 
-    function getAllHashes() external view returns (string[] memory) {
-        return s_ipfsHashes;
+    function getAllUploadInfos() external view returns (UploadInfo[] memory) {
+        return s_uploadInfos;
     }
 
-    function getIpfsHashAtIdx(uint256 idx) external view returns (string memory) {
-        return s_ipfsHashes[idx];
+    function getUploadInfoAtIdx(uint256 idx) external view returns (UploadInfo memory) {
+        return s_uploadInfos[idx];
     }
 
     function getIsUploaded(string memory _ipfsHash) external view returns (bool) {
@@ -96,7 +116,7 @@ contract DecentralizedBox is Ownable {
     function getAllSubOwners() external view returns (address[] memory) {
         return s_subOwners.values();
     }
-   
+    // @note owner of this contract can be viewed by calling the inherited function: owner()
 }
 
 
